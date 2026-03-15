@@ -5,15 +5,19 @@ interface Props {
   board: Board;
   phase: GameState["phase"];
   choiceCandidates: Pos[];
+  lastMove: Pos | null;
+  highlightedCells: Pos[];
   onCellClick: (pos: Pos) => void;
 }
 
-export default function Board({ board, phase, choiceCandidates, onCellClick }: Props) {
+export default function BoardComponent({ board, phase, choiceCandidates, lastMove, highlightedCells, onCellClick }: Props) {
   const size = 15;
   const cellSize = 40; // px
   const boardPx = (size - 1) * cellSize;
 
   const candidateSet = new Set(choiceCandidates.map((p) => `${p.row},${p.col}`));
+  const highlightSet = new Set(highlightedCells.map((p) => `${p.row},${p.col}`));
+  const lastMoveKey = lastMove ? `${lastMove.row},${lastMove.col}` : null;
 
   return (
     <div
@@ -70,7 +74,10 @@ export default function Board({ board, phase, choiceCandidates, onCellClick }: P
       {Array.from({ length: size }).map((_, row) =>
         Array.from({ length: size }).map((_, col) => {
           const cell = board[row][col];
-          const isCandidate = candidateSet.has(`${row},${col}`);
+          const cellKey = `${row},${col}`;
+          const isCandidate = candidateSet.has(cellKey);
+          const isLastMove = cellKey === lastMoveKey;
+          const isHighlighted = highlightSet.has(cellKey);
           const isSkillPhase = phase === "skillExecuting";
           const isPlayerPhase = phase === "playerTurn";
 
@@ -80,7 +87,7 @@ export default function Board({ board, phase, choiceCandidates, onCellClick }: P
 
           return (
             <div
-              key={`${row},${col}`}
+              key={cellKey}
               className="absolute"
               style={{
                 left: col * cellSize,
@@ -98,11 +105,47 @@ export default function Board({ board, phase, choiceCandidates, onCellClick }: P
                   <div className="rounded-full w-[50%] h-[50%] bg-yellow-400 opacity-70 animate-pulse" />
                 </div>
               )}
+
+              {/* Skill effect highlight - brief glow on changed cells */}
+              {isHighlighted && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                  <div
+                    className="rounded-full w-[90%] h-[90%] border-2 border-cyan-300"
+                    style={{
+                      boxShadow: "0 0 8px 2px rgba(103, 232, 249, 0.6), inset 0 0 6px rgba(103, 232, 249, 0.3)",
+                      animation: "skillGlow 1.5s ease-out forwards",
+                    }}
+                  />
+                </div>
+              )}
+
               {cell && <Stone color={cell} />}
+
+              {/* Last move indicator - small red dot */}
+              {isLastMove && cell && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                  <div
+                    className="rounded-full w-[22%] h-[22%]"
+                    style={{
+                      backgroundColor: cell === "black" ? "#ef4444" : "#ef4444",
+                      boxShadow: "0 0 4px 1px rgba(239, 68, 68, 0.6)",
+                    }}
+                  />
+                </div>
+              )}
             </div>
           );
         })
       )}
+
+      {/* CSS for skill effect animation */}
+      <style>{`
+        @keyframes skillGlow {
+          0% { opacity: 1; transform: scale(0.7); }
+          50% { opacity: 1; transform: scale(1.1); }
+          100% { opacity: 0; transform: scale(1.2); }
+        }
+      `}</style>
     </div>
   );
 }

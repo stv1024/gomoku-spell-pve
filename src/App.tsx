@@ -1,5 +1,5 @@
 import { useReducer, useCallback, useState, useRef, useEffect } from "react";
-import type { Pos, Skill } from "./types";
+import type { Pos, Skill, Board } from "./types";
 import { gameReducer, createInitialState } from "./game/gameState";
 import { placeStoneTo } from "./engine/board";
 import { checkWin } from "./engine/rules";
@@ -11,12 +11,25 @@ import { generateSkill } from "./ai/skillGenerator";
 import { skillCache } from "./ai/skillCache";
 import { getRandomTaunt } from "./data/taunts";
 
-import Board from "./components/Board";
+import BoardComponent from "./components/Board";
 import HandCards from "./components/HandCards";
 import CardPicker from "./components/CardPicker";
 import OpponentDialog from "./components/OpponentDialog";
 import SettingsPanel from "./components/SettingsPanel";
 import LevelSelect from "./components/LevelSelect";
+
+/** Compare two boards and return positions that changed */
+function diffBoards(before: Board, after: Board): Pos[] {
+  const changed: Pos[] = [];
+  for (let r = 0; r < 15; r++) {
+    for (let c = 0; c < 15; c++) {
+      if (before[r][c] !== after[r][c]) {
+        changed.push({ row: r, col: c });
+      }
+    }
+  }
+  return changed;
+}
 
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, createInitialState());
@@ -32,7 +45,7 @@ export default function App() {
   const pendingResolveRef = useRef<((pos: Pos) => void) | null>(null);
 
   const apiKey = localStorage.getItem("openrouter_api_key") || "";
-  const model = localStorage.getItem("openrouter_model") || "anthropic/claude-sonnet-4";
+  const model = localStorage.getItem("openrouter_model") || "google/gemini-2.5-flash";
 
   // Trigger AI turn with small delay for UX
   const aiTurnInProgress = useRef(false);
@@ -49,6 +62,7 @@ export default function App() {
         const pos = aiMove(board, level.aiLevel);
         const newBoard = placeStoneTo(board, pos, "black");
         dispatch({ type: "SET_BOARD", board: newBoard });
+        dispatch({ type: "SET_LAST_MOVE", pos });
 
         const winner = checkWin(newBoard);
         if (winner === "black") {
@@ -132,6 +146,8 @@ export default function App() {
 
     const newBoard = placeStoneTo(board, pos, "white");
     dispatch({ type: "SET_BOARD", board: newBoard });
+    dispatch({ type: "SET_LAST_MOVE", pos });
+    dispatch({ type: "SET_HIGHLIGHTED_CELLS", cells: [] });
 
     const winner = checkWin(newBoard);
     if (winner === "white") {
@@ -164,6 +180,9 @@ export default function App() {
     dispatch({ type: "REMOVE_CARD", cardId });
     setSelectedCardId(null);
 
+    // Snapshot board before skill
+    const boardBefore = board.map((row) => [...row]);
+
     const onRequestChoice = (candidates: Pos[]): Promise<Pos> => {
       return new Promise((resolve) => {
         pendingResolveRef.current = resolve;
@@ -175,6 +194,15 @@ export default function App() {
       const newBoard = await executeSkill(board, card.skill.executeCode, onRequestChoice);
       if (newBoard) {
         dispatch({ type: "SET_BOARD", board: newBoard });
+
+        // Highlight cells that changed due to skill
+        const changed = diffBoards(boardBefore, newBoard);
+        if (changed.length > 0) {
+          dispatch({ type: "SET_HIGHLIGHTED_CELLS", cells: changed });
+          // Auto-clear highlight after animation
+          setTimeout(() => dispatch({ type: "SET_HIGHLIGHTED_CELLS", cells: [] }), 1800);
+        }
+
         // Check if white wins after skill
         if (checkWin(newBoard) === "white") {
           dispatch({ type: "SET_PHASE", phase: "won" });
@@ -256,8 +284,8 @@ export default function App() {
         </button>
       </div>
 
-      {/* Opponent dialog */}
-      <div className="w-full max-w-lg mb-3">
+      {/* Opponent dialog - always rendered with fixed height to prevent board shifting */}
+      <div className="w-full max-w-lg mb-3 h-12">
         <OpponentDialog
           taunt={state.taunt}
           onDismiss={() => dispatch({ type: "SET_TAUNT", taunt: null })}
@@ -294,10 +322,12 @@ export default function App() {
       )}
 
       {/* Board */}
-      <Board
+      <BoardComponent
         board={state.board}
         phase={state.phase}
         choiceCandidates={state.choiceCandidates}
+        lastMove={state.lastMove}
+        highlightedCells={state.highlightedCells}
         onCellClick={handleCellClick}
       />
 

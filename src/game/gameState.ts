@@ -13,6 +13,8 @@ export type GameAction =
   | { type: "SET_SKILL_USED"; value: boolean }
   | { type: "SET_CHOICE_PENDING"; resolve: ((pos: Pos) => void) | null; candidates: Pos[] }
   | { type: "SET_TAUNT"; taunt: string | null }
+  | { type: "SET_LAST_MOVE"; pos: Pos | null }
+  | { type: "SET_HIGHLIGHTED_CELLS"; cells: Pos[] }
   | { type: "RESET_SELECTING" };
 
 export function createInitialState(): GameState {
@@ -27,6 +29,8 @@ export function createInitialState(): GameState {
     pendingChoiceResolve: null,
     choiceCandidates: [],
     taunt: null,
+    lastMove: null,
+    highlightedCells: [],
   };
 }
 
@@ -47,6 +51,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         pendingChoiceResolve: null,
         choiceCandidates: [],
         taunt: null,
+        lastMove: null,
+        highlightedCells: [],
       };
     }
     case "SET_BOARD":
@@ -74,6 +80,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     case "SET_TAUNT":
       return { ...state, taunt: action.taunt };
+    case "SET_LAST_MOVE":
+      return { ...state, lastMove: action.pos };
+    case "SET_HIGHLIGHTED_CELLS":
+      return { ...state, highlightedCells: action.cells };
     case "RESET_SELECTING":
       return createInitialState();
     default:

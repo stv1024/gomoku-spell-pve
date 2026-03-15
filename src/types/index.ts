@@ -52,6 +52,8 @@ export type GameState = {
   pendingChoiceResolve: ((pos: Pos) => void) | null;
   choiceCandidates: Pos[];
   taunt: string | null;
+  lastMove: Pos | null;
+  highlightedCells: Pos[];
 };
 
 // BoardAPI 接口（技能代码调用的 API）
