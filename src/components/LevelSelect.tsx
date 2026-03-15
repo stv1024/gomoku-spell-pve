@@ -49,22 +49,7 @@ export default function LevelSelect({ onSelect, onSettings }: Props) {
                   <span className="text-amber-300 text-xs">#{level.id}</span>
                 </div>
                 <p className="text-amber-300 text-xs mt-1 leading-snug">{level.description}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
-                      level.aiLevel === "random"
-                        ? "bg-green-700 text-green-100"
-                        : level.aiLevel === "basic"
-                        ? "bg-yellow-700 text-yellow-100"
-                        : "bg-red-700 text-red-100"
-                    }`}
-                  >
-                    {level.aiLevel === "random"
-                      ? "简单"
-                      : level.aiLevel === "basic"
-                      ? "普通"
-                      : "困难"}
-                  </span>
+                <div className="mt-2">
                   <span className="text-amber-400 text-xs">
                     {level.blackStones.length} 颗黑子
                   </span>

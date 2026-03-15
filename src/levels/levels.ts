@@ -1,12 +1,11 @@
 import type { Level } from "../types";
 
 export const LEVELS: Level[] = [
-  // ─── 入门关卡 1-5（random AI，黑子少，无威胁） ───
+  // ─── 入门关卡 1-5（黑子少，无威胁） ───
   {
     id: 1,
     name: "初出茅庐",
     description: "只有几颗散落的黑子，轻松入门",
-    aiLevel: "random",
     blackStones: [
       { row: 3, col: 3 },
       { row: 5, col: 8 },
@@ -20,7 +19,6 @@ export const LEVELS: Level[] = [
     id: 2,
     name: "小试牛刀",
     description: "黑子稍多，学习用技能辅助落子",
-    aiLevel: "random",
     blackStones: [
       { row: 2, col: 2 },
       { row: 4, col: 6 },
@@ -37,7 +35,6 @@ export const LEVELS: Level[] = [
     id: 3,
     name: "崭露头角",
     description: "黑子开始形成简单聚集",
-    aiLevel: "random",
     blackStones: [
       { row: 4, col: 4 },
       { row: 4, col: 5 },
@@ -55,7 +52,6 @@ export const LEVELS: Level[] = [
     id: 4,
     name: "略显章法",
     description: "黑子已有两连，注意防守",
-    aiLevel: "random",
     blackStones: [
       { row: 5, col: 5 },
       { row: 5, col: 6 },
@@ -75,7 +71,6 @@ export const LEVELS: Level[] = [
     id: 5,
     name: "渐入佳境",
     description: "黑子形成活二，合理使用技能",
-    aiLevel: "random",
     blackStones: [
       { row: 6, col: 6 },
       { row: 6, col: 7 },
@@ -95,12 +90,11 @@ export const LEVELS: Level[] = [
     ],
   },
 
-  // ─── 进阶关卡 6-10（basic AI，黑子多，有三连） ───
+  // ─── 进阶关卡 6-10（黑子多，有三连四连威胁） ───
   {
     id: 6,
     name: "棋逢对手",
     description: "对手开始主动落子，有三连威胁",
-    aiLevel: "basic",
     blackStones: [
       { row: 5, col: 3 },
       { row: 5, col: 4 },
@@ -123,7 +117,6 @@ export const LEVELS: Level[] = [
     id: 7,
     name: "如临大敌",
     description: "多处三连，必须优先防守",
-    aiLevel: "basic",
     blackStones: [
       { row: 4, col: 4 },
       { row: 4, col: 5 },
@@ -140,15 +133,14 @@ export const LEVELS: Level[] = [
       { row: 2, col: 7 },
       { row: 3, col: 7 },
       { row: 13, col: 3 },
-        { row: 1, col: 12 },
-        { row: 2, col: 11 },
+      { row: 1, col: 12 },
+      { row: 2, col: 11 },
     ],
   },
   {
     id: 8,
     name: "步步为营",
     description: "密集布局，活用技能清除障碍",
-    aiLevel: "basic",
     blackStones: [
       { row: 3, col: 3 },
       { row: 3, col: 4 },
@@ -162,7 +154,7 @@ export const LEVELS: Level[] = [
       { row: 8, col: 4 },
       { row: 9, col: 5 },
       { row: 10, col: 6 },
-      { row: 11, col: 7 },
+      // removed (11,7) to break the diagonal five-in-a-row: (7,3)→(8,4)→(9,5)→(10,6)→(11,7)
       { row: 7, col: 11 },
       { row: 8, col: 10 },
       { row: 9, col: 9 },
@@ -176,7 +168,6 @@ export const LEVELS: Level[] = [
     id: 9,
     name: "险象环生",
     description: "多条四连迫在眉睫，用技能化解",
-    aiLevel: "basic",
     blackStones: [
       { row: 4, col: 2 },
       { row: 4, col: 3 },
@@ -207,7 +198,6 @@ export const LEVELS: Level[] = [
     id: 10,
     name: "绝处逢生",
     description: "棋盘被黑子占据大半，需要精妙操作",
-    aiLevel: "basic",
     blackStones: [
       { row: 1, col: 1 },
       { row: 1, col: 2 },

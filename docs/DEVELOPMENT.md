@@ -75,7 +75,6 @@ type Level = {
   name: string;
   description: string;
   blackStones: Pos[];          // 预置黑子坐标
-  aiLevel: "random" | "basic" | "intermediate";
 };
 
 // 技能定义
@@ -151,11 +150,13 @@ interface BoardAPI {
 
 ### 1.3 AI 对手 (`engine/ai.ts`)
 
-Phase 1 只实现 random 和 basic：
+所有关卡使用统一的强力 AI：
 
-- `aiMove(board: Board, level: "random" | "basic" | "intermediate"): Pos`
-- **random**：从 `findEmpty()` 随机选一个
-- **basic**：对每个空位打分。进攻分 = 落黑子后最长黑连线，防守分 = 该位置若被白子占则最长白连线。总分 = 进攻分 × 1.0 + 防守分 × 1.2。取最高分。分数相同时随机选。
+- `aiMove(board: Board): Pos`
+- 候选位置：已有棋子周围 2 格范围内的空位
+- 评估：四方向模式匹配（活四/冲四/活三/眠三等）+ 组合威胁检测（双活三、冲四+活三）
+- 决策优先级：必胜 > 必堵 > 造活四 > 堵活四 > 综合评分
+- 中心偏好 + 微随机保证走法多样性
 
 ### 1.4 技能沙盒 (`engine/skillSandbox.ts`)
 
@@ -256,9 +257,9 @@ function aiTurn():
 
 ### 1.9 关卡数据
 
-Phase 1 写 10 个关卡，在 `levels/levels.ts` 中定义。分两个难度段：
-- 关卡 1-5：random AI，黑子 6-15 颗，无威胁阵型
-- 关卡 6-10：basic AI，黑子 15-30 颗，有简单三连
+Phase 1 写 10 个关卡，在 `levels/levels.ts` 中定义。所有关卡使用同一个强力 AI，难度通过预置黑子的数量和布局威胁度来区分：
+- 关卡 1-5：黑子 6-15 颗，无威胁阵型
+- 关卡 6-10：黑子 15-30 颗，有三连四连威胁
 
 ### 1.10 Phase 1 验收标准
 
@@ -346,24 +347,17 @@ Phase 2 对 CardPicker 的三张卡行为做如下区分：
 
 - 扩充到 20 关，写入 `levels/levels.ts`
 - 分 3 个章节：入门（1-7）、进阶（8-14）、高手（15-20）
-- 每章引入新的 AI 水平和黑子密度
+- 所有关卡使用同一个强力 AI，难度通过黑子数量和布局威胁度递增
 
-### 3.2 intermediate AI
-
-- 在 basic 基础上加 2 层 minimax + alpha-beta 剪枝
-- 评估函数：活四 > 冲四 > 活三 > 眠三 > 活二，分值递减
-- 在主线程执行（2 层搜索通常 < 50ms，无需 Web Worker）
-
-### 3.3 关卡进度
+### 3.2 关卡进度
 
 - 通关记录存 localStorage
 - 关卡列表中已通关标绿，下一关可进入，后续关卡锁定
 - 支持重玩已通关关卡
 
-### 3.4 Phase 3 验收标准
+### 3.3 Phase 3 验收标准
 
 - [ ] 20 关可游玩
-- [ ] intermediate AI 明显比 basic 更强
 - [ ] 关卡进度正确保存和恢复
 - [ ] 关卡选择界面清晰展示进度
 
