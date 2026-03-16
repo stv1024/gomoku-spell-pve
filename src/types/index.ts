@@ -16,7 +16,6 @@ export type Level = {
   name: string;
   description: string;
   blackStones: Pos[];
-  aiLevel: "random" | "basic" | "intermediate";
 };
 
 // 技能定义

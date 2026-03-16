@@ -59,7 +59,7 @@ export default function App() {
         const level = LEVELS.find((l) => l.id === state.levelId);
         if (!level) return;
 
-        const pos = aiMove(board, level.aiLevel);
+        const pos = aiMove(board);
         const newBoard = placeStoneTo(board, pos, "black");
         dispatch({ type: "SET_BOARD", board: newBoard });
         dispatch({ type: "SET_LAST_MOVE", pos });
