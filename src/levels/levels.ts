@@ -216,7 +216,7 @@ export const LEVELS: Level[] = [
       { row: 5, col: 5 },
       { row: 7, col: 7 },
       { row: 7, col: 8 },
-      { row: 7, col: 9 },
+      // removed (7,9): formed anti-diagonal five-in-a-row (3,13)→(4,12)→(5,11)→(6,10)→(7,9)
       { row: 9, col: 3 },
       { row: 9, col: 4 },
       { row: 9, col: 5 },
