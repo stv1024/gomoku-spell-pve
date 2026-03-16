@@ -6,6 +6,7 @@ const FALLBACK_SKILL: Skill = {
   name: "随机应变",
   description: "随机移除一颗黑子",
   flavor: "兵来将挡，水来土掩",
+  rarity: "rare",
   executeCode: `
     const blacks = api.findAll("black");
     if (blacks.length === 0) return;
@@ -26,6 +27,10 @@ function parseSkillFromText(text: string): Skill | null {
       typeof obj.flavor === "string" &&
       typeof obj.executeCode === "string"
     ) {
+      // AI-generated skills default to rare
+      if (!obj.rarity || !["common", "rare", "epic"].includes(obj.rarity)) {
+        obj.rarity = "rare";
+      }
       return obj as Skill;
     }
     return null;

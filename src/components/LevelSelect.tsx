@@ -3,6 +3,7 @@ import { LEVELS } from "../levels/levels";
 
 interface Props {
   onSelect: (levelId: number) => void;
+  onStartRun: () => void;
   onSettings: () => void;
 }
 
@@ -11,7 +12,7 @@ const CHAPTER_NAMES: Record<number, string> = {
   1: "进阶",
 };
 
-export default function LevelSelect({ onSelect, onSettings }: Props) {
+export default function LevelSelect({ onSelect, onStartRun, onSettings }: Props) {
   const chapters = [LEVELS.slice(0, 5), LEVELS.slice(5, 10)];
 
   return (
@@ -28,6 +29,31 @@ export default function LevelSelect({ onSelect, onSettings }: Props) {
         >
           ⚙️
         </button>
+      </div>
+
+      {/* Run mode button */}
+      <div className="w-full max-w-2xl mb-8">
+        <button
+          onClick={onStartRun}
+          className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 border-2 border-amber-400/60 rounded-xl p-5 text-left transition-all hover:shadow-lg group"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-amber-100 font-bold text-lg group-hover:text-white flex items-center gap-2">
+                闯关模式
+              </div>
+              <p className="text-amber-200 text-sm mt-1">
+                连续挑战 {LEVELS.length} 关，手牌跨关卡保留，越往后技能越强
+              </p>
+            </div>
+            <span className="text-amber-300 text-2xl group-hover:text-white">→</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Individual levels */}
+      <div className="w-full max-w-2xl mb-4">
+        <h2 className="text-amber-200/70 font-semibold text-sm mb-3">或单独挑战关卡</h2>
       </div>
 
       {chapters.map((levels: Level[], chapterIdx: number) => (

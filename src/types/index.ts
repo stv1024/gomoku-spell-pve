@@ -19,18 +19,30 @@ export type Level = {
   aiLevel: "random" | "basic" | "intermediate";
 };
 
+// 技能稀有度
+export type Rarity = "common" | "rare" | "epic";
+
 // 技能定义
 export type Skill = {
   name: string;
   description: string;
   flavor: string;
   executeCode: string;
+  rarity: Rarity;
 };
 
 // 手牌
 export type HandCard = {
   id: string;
   skill: Skill;
+};
+
+// Run 状态（Roguelike 闯关）
+export type RunState = {
+  active: boolean;              // 是否在 run 模式中
+  encounterIndex: number;       // 当前关卡序号（0-based）
+  encounterOrder: number[];     // 本次 run 的关卡 ID 顺序
+  persistentHand: HandCard[];   // 跨关卡保留的手牌
 };
 
 // 游戏状态
@@ -45,8 +57,10 @@ export type GameState = {
     | "skillExecuting"
     | "aiTurn"
     | "cardPicking"
+    | "rewardPicking"
     | "won"
-    | "lost";
+    | "lost"
+    | "runComplete";
   levelId: number;
   skillUsedThisTurn: boolean;
   pendingChoiceResolve: ((pos: Pos) => void) | null;
@@ -54,6 +68,7 @@ export type GameState = {
   taunt: string | null;
   lastMove: Pos | null;
   highlightedCells: Pos[];
+  run: RunState;
 };
 
 // BoardAPI 接口（技能代码调用的 API）

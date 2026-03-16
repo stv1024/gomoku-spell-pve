@@ -5,7 +5,7 @@ import { placeStoneTo } from "./engine/board";
 import { checkWin } from "./engine/rules";
 import { aiMove } from "./engine/ai";
 import { executeSkill } from "./engine/skillSandbox";
-import { makeCard, pickRandomPresetSkills } from "./game/cardSystem";
+import { makeCard, pickRandomPresetSkills, pickRewardSkills, getAvailableRarities } from "./game/cardSystem";
 import { LEVELS } from "./levels/levels";
 import { generateSkill } from "./ai/skillGenerator";
 import { skillCache } from "./ai/skillCache";
@@ -17,6 +17,7 @@ import CardPicker from "./components/CardPicker";
 import OpponentDialog from "./components/OpponentDialog";
 import SettingsPanel from "./components/SettingsPanel";
 import LevelSelect from "./components/LevelSelect";
+import RewardPicker from "./components/RewardPicker";
 
 /** Compare two boards and return positions that changed */
 function diffBoards(before: Board, after: Board): Pos[] {
@@ -41,6 +42,9 @@ export default function App() {
   const [isGeneratingThird, setIsGeneratingThird] = useState(false);
   const [generatedThird, setGeneratedThird] = useState<Skill | null>(null);
 
+  // Reward picker state
+  const [rewardCards, setRewardCards] = useState<Skill[]>([]);
+
   // Use a ref to hold the pendingChoiceResolve so we can call it from board clicks
   const pendingResolveRef = useRef<((pos: Pos) => void) | null>(null);
 
@@ -49,6 +53,13 @@ export default function App() {
 
   // Trigger AI turn with small delay for UX
   const aiTurnInProgress = useRef(false);
+
+  /** Get current encounter index for rarity calculation */
+  const getEncounterIndex = useCallback(() => {
+    if (state.run.active) return state.run.encounterIndex;
+    // Standalone mode: use level id as rough encounter index
+    return state.levelId - 1;
+  }, [state.run, state.levelId]);
 
   const runAiTurn = useCallback(
     (board: typeof state.board) => {
@@ -92,7 +103,8 @@ export default function App() {
 
   function triggerCardPick() {
     const existing = state.hand.map((c) => c.skill.name);
-    const twoCards = pickRandomPresetSkills(2, existing);
+    const rarities = getAvailableRarities(getEncounterIndex());
+    const twoCards = pickRandomPresetSkills(2, existing, rarities);
     setPickerCards(twoCards);
     setGeneratedThird(null);
     dispatch({ type: "SET_PHASE", phase: "cardPicking" });
@@ -103,7 +115,20 @@ export default function App() {
     dispatch({ type: "START_GAME", levelId });
     // Phase is set to cardPicking in reducer START_GAME
     const existing: string[] = [];
-    const twoCards = pickRandomPresetSkills(2, existing);
+    const rarities = getAvailableRarities(levelId - 1);
+    const twoCards = pickRandomPresetSkills(2, existing, rarities);
+    setPickerCards(twoCards);
+    setGeneratedThird(null);
+    setSelectedCardId(null);
+    aiTurnInProgress.current = false;
+  }
+
+  function handleStartRun() {
+    skillCache.clear();
+    dispatch({ type: "START_RUN" });
+    // First encounter starts with cardPicking
+    const rarities = getAvailableRarities(0);
+    const twoCards = pickRandomPresetSkills(2, [], rarities);
     setPickerCards(twoCards);
     setGeneratedThird(null);
     setSelectedCardId(null);
@@ -114,6 +139,34 @@ export default function App() {
     const card = makeCard(skill);
     dispatch({ type: "ADD_CARDS", cards: [card] });
     dispatch({ type: "SET_PHASE", phase: "playerTurn" });
+  }
+
+  function handleRewardPicked(skill: Skill) {
+    // Add reward to persistent hand
+    const card = makeCard(skill);
+    const newHand = [...state.hand, card].slice(0, 5);
+    // Update hand in state
+    dispatch({ type: "ADD_CARDS", cards: [card] });
+    // Save to persistent hand and advance to next encounter
+    const updatedPersistentHand = newHand;
+    // We need to update run.persistentHand before NEXT_ENCOUNTER
+    // The SET_PHASE to rewardPicking already saved hand, now add the reward
+    state.run.persistentHand = updatedPersistentHand;
+    dispatch({ type: "NEXT_ENCOUNTER" });
+
+    // Trigger card pick for the new encounter
+    setTimeout(() => {
+      const nextIndex = state.run.encounterIndex + 1;
+      if (nextIndex < state.run.encounterOrder.length) {
+        const existing = updatedPersistentHand.map((c) => c.skill.name);
+        const rarities = getAvailableRarities(nextIndex);
+        const twoCards = pickRandomPresetSkills(2, existing, rarities);
+        setPickerCards(twoCards);
+        setGeneratedThird(null);
+        setSelectedCardId(null);
+        aiTurnInProgress.current = false;
+      }
+    }, 50);
   }
 
   async function handleGenerateThird(idiom: string) {
@@ -151,6 +204,22 @@ export default function App() {
 
     const winner = checkWin(newBoard);
     if (winner === "white") {
+      // In run mode, go to reward picking instead of just "won"
+      if (state.run.active) {
+        const nextIndex = state.run.encounterIndex + 1;
+        if (nextIndex >= state.run.encounterOrder.length) {
+          // Last encounter — run complete!
+          dispatch({ type: "SET_PHASE", phase: "runComplete" });
+          return;
+        }
+        // Show reward picker
+        const existing = state.hand.map((c) => c.skill.name);
+        const rewards = pickRewardSkills(3, existing, state.run.encounterIndex);
+        setRewardCards(rewards);
+        dispatch({ type: "SET_PHASE", phase: "rewardPicking" });
+        dispatch({ type: "SET_TAUNT", taunt: getRandomTaunt("losing") });
+        return;
+      }
       dispatch({ type: "SET_PHASE", phase: "won" });
       dispatch({ type: "SET_TAUNT", taunt: getRandomTaunt("losing") });
       return;
@@ -205,6 +274,19 @@ export default function App() {
 
         // Check if white wins after skill
         if (checkWin(newBoard) === "white") {
+          if (state.run.active) {
+            const nextIndex = state.run.encounterIndex + 1;
+            if (nextIndex >= state.run.encounterOrder.length) {
+              dispatch({ type: "SET_PHASE", phase: "runComplete" });
+              return;
+            }
+            const existing = state.hand.map((c) => c.skill.name);
+            const rewards = pickRewardSkills(3, existing, state.run.encounterIndex);
+            setRewardCards(rewards);
+            dispatch({ type: "SET_PHASE", phase: "rewardPicking" });
+            dispatch({ type: "SET_TAUNT", taunt: getRandomTaunt("losing") });
+            return;
+          }
           dispatch({ type: "SET_PHASE", phase: "won" });
           dispatch({ type: "SET_TAUNT", taunt: getRandomTaunt("losing") });
           return;
@@ -248,7 +330,11 @@ export default function App() {
   if (state.phase === "selecting") {
     return (
       <>
-        <LevelSelect onSelect={handleLevelSelect} onSettings={() => setShowSettings(true)} />
+        <LevelSelect
+          onSelect={handleLevelSelect}
+          onStartRun={handleStartRun}
+          onSettings={() => setShowSettings(true)}
+        />
         {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       </>
     );
@@ -259,9 +345,15 @@ export default function App() {
     skillExecuting: "选择目标",
     aiTurn: "对手落子中…",
     cardPicking: "选择技能卡",
+    rewardPicking: "选择奖励",
     won: "🎉 你赢了！",
     lost: "😢 你输了！",
+    runComplete: "🏆 通关！",
   };
+
+  const headerLabel = state.run.active
+    ? `${level?.name} — 第 ${state.run.encounterIndex + 1}/${state.run.encounterOrder.length} 关 — 回合 ${state.turnNumber + 1}`
+    : `${level?.name} — 回合 ${state.turnNumber + 1}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-900 to-amber-700 flex flex-col items-center py-4 px-2">
@@ -274,7 +366,7 @@ export default function App() {
           ← 返回
         </button>
         <div className="text-amber-100 font-bold text-sm">
-          {level?.name} — 回合 {state.turnNumber + 1}
+          {headerLabel}
         </div>
         <button
           onClick={() => setShowSettings(true)}
@@ -301,7 +393,7 @@ export default function App() {
             ? "bg-yellow-100 text-yellow-700"
             : state.phase === "aiTurn"
             ? "bg-red-100 text-red-700"
-            : state.phase === "won"
+            : state.phase === "won" || state.phase === "runComplete"
             ? "bg-green-100 text-green-700"
             : state.phase === "lost"
             ? "bg-red-100 text-red-700"
@@ -342,33 +434,61 @@ export default function App() {
         />
       </div>
 
-      {/* Won / Lost overlay */}
-      {(state.phase === "won" || state.phase === "lost") && (
+      {/* Won / Lost / Run Complete overlay */}
+      {(state.phase === "won" || state.phase === "lost" || state.phase === "runComplete") && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 text-center shadow-2xl max-w-sm mx-4">
-            <div className="text-5xl mb-4">{state.phase === "won" ? "🎉" : "😢"}</div>
+            <div className="text-5xl mb-4">
+              {state.phase === "runComplete" ? "🏆" : state.phase === "won" ? "🎉" : "😢"}
+            </div>
             <div className="text-2xl font-bold mb-2 text-gray-800">
-              {state.phase === "won" ? "胜利！" : "失败"}
+              {state.phase === "runComplete" ? "全部通关！" : state.phase === "won" ? "胜利！" : "失败"}
             </div>
             <div className="text-gray-500 mb-6">
-              {state.phase === "won" ? "你用技能翻盘了！" : "黑子连成五子，再试一次？"}
+              {state.phase === "runComplete"
+                ? "恭喜你完成了所有关卡！"
+                : state.phase === "won"
+                ? "你用技能翻盘了！"
+                : state.run.active
+                ? `在第 ${state.run.encounterIndex + 1} 关失败了，Run 结束`
+                : "黑子连成五子，再试一次？"}
             </div>
             <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => handleLevelSelect(state.levelId)}
-                className="bg-blue-500 text-white rounded-lg px-5 py-2 font-medium hover:bg-blue-600 transition-colors"
-              >
-                再来一局
-              </button>
+              {!state.run.active && state.phase !== "runComplete" && (
+                <button
+                  onClick={() => handleLevelSelect(state.levelId)}
+                  className="bg-blue-500 text-white rounded-lg px-5 py-2 font-medium hover:bg-blue-600 transition-colors"
+                >
+                  再来一局
+                </button>
+              )}
+              {state.run.active && state.phase === "lost" && (
+                <button
+                  onClick={handleStartRun}
+                  className="bg-blue-500 text-white rounded-lg px-5 py-2 font-medium hover:bg-blue-600 transition-colors"
+                >
+                  重新开始 Run
+                </button>
+              )}
               <button
                 onClick={() => dispatch({ type: "RESET_SELECTING" })}
                 className="bg-gray-200 text-gray-700 rounded-lg px-5 py-2 font-medium hover:bg-gray-300 transition-colors"
               >
-                选择关卡
+                返回主菜单
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Reward picker (run mode: after winning an encounter) */}
+      {state.phase === "rewardPicking" && (
+        <RewardPicker
+          rewards={rewardCards}
+          encounterIndex={state.run.encounterIndex}
+          totalEncounters={state.run.encounterOrder.length}
+          onPick={handleRewardPicked}
+        />
       )}
 
       {/* Card picker */}
